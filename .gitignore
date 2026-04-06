@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# Flask
+instance/
+.webassets-cache
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+desktop.ini
+
+# Логи и базы данных
+*.log
+*.sql
+*.sqlite
+*.db
+
+# Кэш станций (создается автоматически при запуске)
+backend/stations_cache.json
+backend/__pycache__/
+
+# Виртуальное окружение
+backend/venv/
+backend/env/
+backend/venv*/
+
+# Файлы с секретами
+backend/.env
+.secrets
+
+# Временные файлы
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Результаты тестов
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Файлы зависимостей (они уже есть в requirements.txt)
+# Не удаляем сам requirements.txt
+
+# Node modules (если появятся)
+node_modules/
+npm-debug.log
+
+# Системные файлы Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Системные файлы macOS
+.AppleDouble
+.LSOverride
+._*
+
+# Файлы отладки
+*.pid
+*.seed
+*.pid.lock
