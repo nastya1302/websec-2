@@ -78,3 +78,21 @@ Desktop.ini
 *.pid
 *.seed
 *.pid.lock
+
+# Secrets
+backend/.env
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+env/
+
+# Cache
+backend/stations_cache.json
+
+# IDE
+.vscode/
+.idea/

@@ -1,14 +1,28 @@
+import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from yaschedule.core import YaSchedule
 from station_cache import load_all_stations, search_stations
 from datetime import datetime
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__, static_folder='../frontend/static', static_url_path='/static')
 CORS(app)  
 
-API_KEY = "fe660fb4-dea3-4df5-a4cd-6672f326b1dc"
+API_KEY = os.getenv('YANDEX_API_KEY')
+FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True') == 'True'
+PORT = int(os.getenv('PORT', 5000))
+
+if not API_KEY:
+    print("❌ ОШИБКА: YANDEX_API_KEY не найден в .env файле!")
+    print("Создайте файл .env в папке backend и добавьте:")
+    print("YANDEX_API_KEY=ваш_ключ_здесь")
+    exit(1)
+
+print(f"✅ API ключ загружен из .env")
 
 train_api = YaSchedule(API_KEY)
 
@@ -20,17 +34,17 @@ print("✅ База готова!")
 def serve_index():
     return send_from_directory('../frontend/pages', 'index.html')
 
-@app.route('/api/stations/find', methods=['GET'])
-def find_stations():
-    search_term = request.args.get('term', '')
+@app.route('/api/search/stations', methods=['GET'])
+def search_stations_by_name():
+    search_term = request.args.get('q', '')
     if len(search_term) < 2:
         return jsonify([])
     
     results = search_stations(station_db, search_term)
     return jsonify(results)
 
-@app.route('/api/stations/nearby', methods=['GET'])
-def get_nearby_stations():
+@app.route('/api/geo/nearby', methods=['GET'])
+def get_nearby_railway_stations():
     lat = request.args.get('lat')
     lng = request.args.get('lng')
     distance = request.args.get('distance', 50)
@@ -72,19 +86,19 @@ def get_nearby_stations():
         print(f"Error: {e}")
         return jsonify([])
 
-@app.route('/api/stations/top', methods=['GET'])
-def get_top_stations():
-    top_stations = [
+@app.route('/api/recommended/stations', methods=['GET'])
+def get_recommended_stations():
+    popular_stations = [
         {'name': 'Москва (Киевский вокзал)', 'code': 's9603402'},
         {'name': 'Санкт-Петербург (Витебский)', 'code': 's9603551'},
         {'name': 'Москва (Казанский вокзал)', 'code': 's9603404'},
         {'name': 'Москва (Ярославский вокзал)', 'code': 's9603408'},
         {'name': 'Москва (Павелецкий вокзал)', 'code': 's9603405'},
     ]
-    return jsonify(top_stations)
+    return jsonify(popular_stations)
 
-@app.route('/api/trains/by-station', methods=['GET'])
-def get_station_trains():
+@app.route('/api/timetable/station', methods=['GET'])
+def get_station_timetable():
     station_id = request.args.get('station')
     travel_date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
     
@@ -101,8 +115,8 @@ def get_station_trains():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/trains/route', methods=['GET'])
-def find_route_trains():
+@app.route('/api/timetable/route', methods=['GET'])
+def get_route_timetable():
     from_station = request.args.get('from')
     to_station = request.args.get('to')
     travel_date = request.args.get('date', datetime.now().strftime('%Y-%m-%d'))
@@ -121,5 +135,9 @@ def find_route_trains():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'ok', 'api_configured': bool(API_KEY)})
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=FLASK_DEBUG, port=PORT)

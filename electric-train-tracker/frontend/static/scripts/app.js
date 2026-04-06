@@ -9,7 +9,7 @@ let map = null;
 let mapMarkers = [];
 
 $(document).ready(function() {
-    const saved = localStorage.getItem('train_favorites');
+    const saved = localStorage.getItem('railway_favorites');
     if (saved) favorites = JSON.parse(saved);
     
     const today = new Date().toISOString().split('T')[0];
@@ -18,11 +18,11 @@ $(document).ready(function() {
     
     initTabs();
     initSearch();
-    loadPopularStations();
+    loadRecommendedStations();
     renderFavorites();
     
-    $('#search-station-btn').click(getStationSchedule);
-    $('#search-route-btn').click(getRouteSchedule);
+    $('#search-station-btn').click(loadStationTimetable);
+    $('#search-route-btn').click(findRouteTimetable);
 });
 
 function initTabs() {
@@ -57,7 +57,7 @@ function initSearch() {
                 return;
             }
             timeout = setTimeout(() => {
-                $.get(`${API_URL}/stations/find?term=${encodeURIComponent(query)}`, function(data) {
+                $.get(`${API_URL}/search/stations?q=${encodeURIComponent(query)}`, function(data) {
                     $(field.suggestions).empty().show();
                     data.forEach(s => {
                         const item = $(`<div class="suggestion-item"><b>${s.title}</b><br><small>${s.city || ''}</small></div>`);
@@ -78,8 +78,8 @@ function initSearch() {
     });
 }
 
-function loadPopularStations() {
-    $.get(`${API_URL}/stations/top`, function(data) {
+function loadRecommendedStations() {
+    $.get(`${API_URL}/recommended/stations`, function(data) {
         const container = $('#popular-list');
         container.empty();
         data.forEach(s => {
@@ -88,14 +88,14 @@ function loadPopularStations() {
                 selectedStationCode = s.code;
                 selectedStationName = s.name;
                 $('#station-input').val(s.name);
-                getStationSchedule();
+                loadStationTimetable();
             });
             container.append(item);
         });
     });
 }
 
-function getStationSchedule() {
+function loadStationTimetable() {
     if (!selectedStationCode) {
         showMessage('Выберите станцию!');
         return;
@@ -103,13 +103,13 @@ function getStationSchedule() {
     const date = $('#station-date').val();
     showLoading();
     $('#results').show();
-    $.get(`${API_URL}/trains/by-station?station=${selectedStationCode}&date=${date}`)
-        .done(data => renderSchedule(data, selectedStationName))
+    $.get(`${API_URL}/timetable/station?station=${selectedStationCode}&date=${date}`)
+        .done(data => displayTimetable(data, selectedStationName))
         .fail(() => $('#schedule-list').html('<div class="error">Ошибка загрузки</div>'))
         .always(() => hideLoading());
 }
 
-function getRouteSchedule() {
+function findRouteTimetable() {
     if (!fromStationCode || !toStationCode) {
         showMessage('Выберите обе станции!');
         return;
@@ -117,13 +117,13 @@ function getRouteSchedule() {
     const date = $('#route-date').val();
     showLoading();
     $('#results').show();
-    $.get(`${API_URL}/trains/route?from=${fromStationCode}&to=${toStationCode}&date=${date}`)
-        .done(data => renderSchedule(data))
+    $.get(`${API_URL}/timetable/route?from=${fromStationCode}&to=${toStationCode}&date=${date}`)
+        .done(data => displayTimetable(data))
         .fail(() => $('#schedule-list').html('<div class="error">Ошибка загрузки</div>'))
         .always(() => hideLoading());
 }
 
-function renderSchedule(data, stationContextName) {
+function displayTimetable(data, stationContextName) {
     let trains = [];
     
     if (data && data.schedule && Array.isArray(data.schedule)) {
@@ -212,7 +212,7 @@ function toggleFavorite(name) {
         favorites.splice(idx, 1);
         showMessage(`💔 ${name} удалена из избранного`);
     }
-    localStorage.setItem('train_favorites', JSON.stringify(favorites));
+    localStorage.setItem('railway_favorites', JSON.stringify(favorites));
     renderFavorites();
 }
 
@@ -258,11 +258,11 @@ function renderFavorites() {
 }
 
 function findStationCodeByName(stationName) {
-    $.get(`${API_URL}/stations/find?term=${encodeURIComponent(stationName)}`, function(data) {
+    $.get(`${API_URL}/search/stations?q=${encodeURIComponent(stationName)}`, function(data) {
         if (data && data.length > 0) {
             selectedStationCode = data[0].code;
             selectedStationName = data[0].title;
-            getStationSchedule();
+            loadStationTimetable();
         } else {
             showMessage(`❌ Станция "${stationName}" не найдена`);
         }
@@ -285,7 +285,7 @@ function initMap() {
         
         map.events.add('click', function(e) {
             const coords = e.get('coords');
-            findNearestStations(coords[0], coords[1]);
+            findNearbyStations(coords[0], coords[1]);
         });
         
         $('#find-my-location').click(function() {
@@ -294,7 +294,7 @@ function initMap() {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     map.setCenter([lat, lng], 14);
-                    findNearestStations(lat, lng);
+                    findNearbyStations(lat, lng);
                     showMessage(`📍 Определено ваше местоположение`);
                 }, function() { showMessage(`❌ Не удалось определить местоположение`); });
             } else { showMessage(`❌ Геолокация не поддерживается`); }
@@ -302,12 +302,12 @@ function initMap() {
     });
 }
 
-function findNearestStations(lat, lng) {
+function findNearbyStations(lat, lng) {
     showMessage(`🔍 Поиск станций рядом...`);
     $('#nearby-stations-list').html('<div class="loading-small">Загрузка...</div>');
     $('#selected-station-info').show();
     
-    $.get(`${API_URL}/stations/nearby?lat=${lat}&lng=${lng}&distance=50`)
+    $.get(`${API_URL}/geo/nearby?lat=${lat}&lng=${lng}&distance=50`)
         .done(data => displayNearbyStations(data))
         .fail(() => $('#nearby-stations-list').html('<div class="error-small">Ошибка поиска станций</div>'));
 }
@@ -359,7 +359,7 @@ function selectStationFromMap(code, name) {
     $('#station-input').val(name);
     showMessage(`✅ Выбрана станция: ${name}`);
     $('.tab-btn[data-tab="station"]').click();
-    if (code) setTimeout(() => getStationSchedule(), 100);
+    if (code) setTimeout(() => loadStationTimetable(), 100);
 }
 
 window.selectStationFromMap = selectStationFromMap;
