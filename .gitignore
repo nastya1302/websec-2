@@ -91,8 +91,18 @@ venv/
 env/
 
 # Cache
-backend/stations_cache.json
+electric-train-tracker/backend/stations_cache.json
 
 # IDE
 .vscode/
 .idea/
+
+# Yandex schedule cache
+yaschedule.core.cache
+*.cache
+backend/yaschedule.core.cache
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
