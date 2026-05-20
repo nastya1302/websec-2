@@ -13,7 +13,7 @@ app = Flask(__name__, static_folder='../frontend/static', static_url_path='/stat
 CORS(app)  
 
 API_KEY = os.getenv('YANDEX_API_KEY')
-FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True') == 'True'
+FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'True')
 PORT = int(os.getenv('PORT', 5000))
 
 if not API_KEY:
