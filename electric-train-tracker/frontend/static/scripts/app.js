@@ -7,10 +7,14 @@ let toStationCode = null;
 let favorites = [];
 let map = null;
 let mapMarkers = [];
+let ymapsReady = false;
 
 $(document).ready(function() {
-    const saved = localStorage.getItem('railway_favorites');
-    if (saved) favorites = JSON.parse(saved);
+    favorites = FavoritesStorage.getAll();
+    
+    if (!FavoritesStorage.isAvailable()) {
+        showMessage('⚠️ Хранение избранного недоступно в вашем браузере');
+    }
     
     const today = new Date().toISOString().split('T')[0];
     $('#station-date').val(today);
@@ -35,45 +39,69 @@ function initTabs() {
         $(`#${tab}-tab`).addClass('active');
         $('#results').hide();
         
-        if (tab === 'map') setTimeout(() => initMap(), 100);
-        if (tab === 'favorites') renderFavorites();
+        if (tab === 'map') {
+            setTimeout(() => initMap(), 100);
+        }
     });
 }
 
 function initSearch() {
     const fields = [
-        { input: '#station-input', suggestions: '#station-suggestions', setCode: (c) => selectedStationCode = c, setName: (n) => selectedStationName = n },
-        { input: '#from-input', suggestions: '#from-suggestions', setCode: (c) => fromStationCode = c },
-        { input: '#to-input', suggestions: '#to-suggestions', setCode: (c) => toStationCode = c }
+        { 
+            input: '#station-input', 
+            suggestions: '#station-suggestions', 
+            setCode: (c) => selectedStationCode = c, 
+            setName: (n) => selectedStationName = n 
+        },
+        { 
+            input: '#from-input', 
+            suggestions: '#from-suggestions', 
+            setCode: (c) => fromStationCode = c 
+        },
+        { 
+            input: '#to-input', 
+            suggestions: '#to-suggestions', 
+            setCode: (c) => toStationCode = c 
+        }
     ];
     
     fields.forEach(field => {
         let timeout;
+        
         $(field.input).on('input', function() {
             clearTimeout(timeout);
             const query = $(this).val();
+            
             if (query.length < 2) {
                 $(field.suggestions).hide();
                 return;
             }
+            
             timeout = setTimeout(() => {
                 $.get(`${API_URL}/search/stations?q=${encodeURIComponent(query)}`, function(data) {
                     $(field.suggestions).empty().show();
+                    
                     data.forEach(s => {
-                        const item = $(`<div class="suggestion-item"><b>${s.title}</b><br><small>${s.city || ''}</small></div>`);
-                        item.click(() => {
+                        const itemHtml = Templates.stationSuggestion(s);
+                        const $item = $(itemHtml);
+                        
+                        $item.click(() => {
                             $(field.input).val(s.title);
                             if (field.setCode) field.setCode(s.code);
                             if (field.setName) field.setName(s.title);
                             $(field.suggestions).hide();
                         });
-                        $(field.suggestions).append(item);
+                        
+                        $(field.suggestions).append($item);
                     });
                 });
             }, 300);
         });
+        
         $(document).click(e => {
-            if (!$(e.target).closest(field.input).length) $(field.suggestions).hide();
+            if (!$(e.target).closest(field.input).length) {
+                $(field.suggestions).hide();
+            }
         });
     });
 }
@@ -83,14 +111,15 @@ function loadRecommendedStations() {
         const container = $('#popular-list');
         container.empty();
         data.forEach(s => {
-            const item = $(`<div class="popular-item">${s.name}</div>`);
-            item.click(() => {
+            const itemHtml = Templates.popularStation(s);
+            const $item = $(itemHtml);
+            $item.click(() => {
                 selectedStationCode = s.code;
                 selectedStationName = s.name;
                 $('#station-input').val(s.name);
                 loadStationTimetable();
             });
-            container.append(item);
+            container.append($item);
         });
     });
 }
@@ -146,78 +175,42 @@ function displayTimetable(data, stationContextName) {
     const favContextName = stationContextName || $('#station-input').val() || 'Станция';
     
     trains.forEach(train => {
-        let trainNumber = '---';
-        let depTime = '---';
-        let arrTime = '---';
-        let days = '';
-        let direction = '';
-        
-        if (train.thread && train.thread.number) trainNumber = train.thread.number;
-        else if (train.number) trainNumber = train.number;
-        
-        if (train.departure) depTime = train.departure;
-        if (train.arrival) arrTime = train.arrival;
-        if (train.days) days = train.days;
-        if (train.direction) direction = train.direction;
-        else if (train.thread && train.thread.title) direction = train.thread.title;
-        
-        const fromName = train.from?.title || '';
-        const toName = train.to?.title || '';
-        
         const isFav = favorites.includes(favContextName);
+        const cardHtml = Templates.trainCard(train, favContextName, isFav);
+        const $card = $(cardHtml);
         
-        const card = $(`
-            <div class="train-card">
-                <div class="train-header">
-                    <span class="train-number">🚆 Поезд №${trainNumber}</span>
-                    <button class="favorite-btn ${isFav ? 'active' : ''}" data-name="${favContextName}">
-                        <i class="fas ${isFav ? 'fa-heart' : 'fa-heart-o'}"></i>
-                        <span>${isFav ? 'В избранном' : 'Сохранить'}</span>
-                    </button>
-                </div>
-                <div class="train-route">
-                    ${fromName && toName ? `${fromName} → ${toName}` : (direction || favContextName)}
-                </div>
-                <div class="train-time">
-                    <div class="departure-info">
-                        <span class="time-label">🕐 Отправление:</span>
-                        <span class="time-value">${depTime}</span>
-                    </div>
-                    <div class="arrival-info">
-                        <span class="time-label">🏁 Прибытие:</span>
-                        <span class="time-value">${arrTime}</span>
-                    </div>
-                </div>
-                ${days ? `<div class="train-days">📅 ${days}</div>` : ''}
-            </div>
-        `);
-        
-        card.find('.favorite-btn').click(function(e) {
+        $card.find('.favorite-btn').click(function(e) {
             e.stopPropagation();
             const name = $(this).data('name');
             toggleFavorite(name);
             updateFavButton($(this), name);
         });
         
-        $('#schedule-list').append(card);
+        $('#schedule-list').append($card);
     });
 }
 
 function toggleFavorite(name) {
-    const idx = favorites.indexOf(name);
-    if (idx === -1) {
-        favorites.push(name);
-        showMessage(`❤️ ${name} добавлена в избранное`);
-    } else {
-        favorites.splice(idx, 1);
-        showMessage(`💔 ${name} удалена из избранного`);
+    if (!name) {
+        console.warn('toggleFavorite: имя станции не указано');
+        return false;
     }
-    localStorage.setItem('railway_favorites', JSON.stringify(favorites));
-    renderFavorites();
+    
+    const result = FavoritesStorage.toggle(favorites, name);
+    
+    if (result.changed) {
+        favorites = result.favorites;
+        showMessage(result.message);
+        renderFavorites();
+        return true;
+    } else {
+        showMessage(result.message);
+        return false;
+    }
 }
 
 function isFavorite(name) {
-    return favorites.includes(name);
+    return FavoritesStorage.isFavorite(favorites, name);
 }
 
 function updateFavButton(btn, name) {
@@ -235,13 +228,10 @@ function renderFavorites() {
     }
     container.empty();
     favorites.forEach(name => {
-        const card = $(`
-            <div class="favorite-card" data-name="${name}">
-                <div><i class="fas fa-train"></i> <strong>${name}</strong></div>
-                <button class="remove-fav">🗑️ Удалить</button>
-            </div>
-        `);
-        card.click(e => {
+        const cardHtml = Templates.favoriteCard(name);
+        const $card = $(cardHtml);
+        
+        $card.click(e => {
             if (!$(e.target).hasClass('remove-fav')) {
                 selectedStationName = name;
                 $('#station-input').val(name);
@@ -249,11 +239,13 @@ function renderFavorites() {
                 findStationCodeByName(name);
             }
         });
-        card.find('.remove-fav').click(e => {
+        
+        $card.find('.remove-fav').click(e => {
             e.stopPropagation();
             toggleFavorite(name);
         });
-        container.append(card);
+        
+        container.append($card);
     });
 }
 
@@ -270,35 +262,89 @@ function findStationCodeByName(stationName) {
 }
 
 function initMap() {
-    if (map) return;
-    if (typeof ymaps === 'undefined') { setTimeout(initMap, 200); return; }
+    if (map !== null) {
+        console.log('Карта уже создана');
+        setTimeout(function() {
+            if (map && typeof map.container.fitToViewport === 'function') {
+                map.container.fitToViewport();
+            }
+        }, 100);
+        return;
+    }
     
-    ymaps.ready(() => {
-        map = new ymaps.Map('map', { 
-            center: [55.751574, 37.573856], 
-            zoom: 10, 
-            controls: ['zoomControl', 'fullscreenControl', 'geolocationControl']
-        });
+    const mapContainer = document.getElementById('map');
+    if (!mapContainer) {
+        console.log('Контейнер #map не найден');
+        setTimeout(initMap, 200);
+        return;
+    }
+    
+    if (mapContainer.offsetWidth === 0 || mapContainer.offsetHeight === 0) {
+        console.log('Контейнер карты имеет нулевые размеры, откладываем инициализацию');
+        setTimeout(initMap, 200);
+        return;
+    }
+    
+    if (typeof window.ymaps === 'undefined') {
+        console.log('Ожидание загрузки Яндекс.Карт API...');
+        setTimeout(initMap, 200);
+        return;
+    }
+    
+    console.log('Инициализация карты...');
+    
+    window.ymaps.ready(function() {
+        if (map !== null) {
+            console.log('Карта уже создана внутри ymaps.ready');
+            return;
+        }
         
-        const searchControl = new ymaps.control.SearchControl({ options: { provider: 'yandex#search', size: 'large', noSelect: true } });
-        map.controls.add(searchControl);
-        
-        map.events.add('click', function(e) {
-            const coords = e.get('coords');
-            findNearbyStations(coords[0], coords[1]);
-        });
-        
-        $('#find-my-location').click(function() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    map.setCenter([lat, lng], 14);
-                    findNearbyStations(lat, lng);
-                    showMessage(`📍 Определено ваше местоположение`);
-                }, function() { showMessage(`❌ Не удалось определить местоположение`); });
-            } else { showMessage(`❌ Геолокация не поддерживается`); }
-        });
+        try {
+            map = new window.ymaps.Map('map', { 
+                center: [55.751574, 37.573856], 
+                zoom: 10, 
+                controls: ['zoomControl', 'fullscreenControl', 'geolocationControl']
+            });
+            
+            console.log('Карта успешно создана');
+            
+            var searchControl = new window.ymaps.control.SearchControl({ 
+                options: { 
+                    provider: 'yandex#search', 
+                    size: 'large', 
+                    noSelect: true 
+                } 
+            });
+            map.controls.add(searchControl);
+            
+            map.events.add('click', function(e) {
+                var coords = e.get('coords');
+                findNearbyStations(coords[0], coords[1]);
+            });
+            
+            $('#find-my-location').off('click').on('click', function() {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function(position) {
+                            var lat = position.coords.latitude;
+                            var lng = position.coords.longitude;
+                            map.setCenter([lat, lng], 14);
+                            findNearbyStations(lat, lng);
+                            showMessage('📍 Определено ваше местоположение');
+                        }, 
+                        function() { 
+                            showMessage('❌ Не удалось определить местоположение'); 
+                        }
+                    );
+                } else { 
+                    showMessage('❌ Геолокация не поддерживается'); 
+                }
+            });
+            
+        } catch(e) {
+            console.error('Ошибка при создании карты:', e);
+            $('#map').html('<div style="padding:20px;text-align:center;color:red;">Ошибка загрузки карты: ' + e.message + '</div>');
+        }
     });
 }
 
@@ -319,8 +365,15 @@ function displayNearbyStations(stations) {
     }
     
     $('#nearby-stations-list').empty();
-    mapMarkers.forEach(marker => map.geoObjects.remove(marker));
-    mapMarkers = [];
+    
+    if (mapMarkers.length) {
+        mapMarkers.forEach(marker => {
+            if (map && map.geoObjects) {
+                map.geoObjects.remove(marker);
+            }
+        });
+        mapMarkers = [];
+    }
     
     stations.forEach(station => {
         const stationLat = station.latitude;
@@ -328,28 +381,45 @@ function displayNearbyStations(stations) {
         const stationName = station.title;
         const stationCode = station.code;
         const distance = station.distance ? station.distance.toFixed(1) : '?';
-        const city = station.city || '';
         const buttonId = 'btn_' + Math.random().toString(36).substr(2, 9);
         
-        if (stationLat && stationLng) {
-            const marker = new ymaps.Placemark([stationLat, stationLng], {
-                hintContent: stationName,
-                balloonContent: `<div class="station-balloon"><strong>${stationName}</strong><br><small>Расстояние: ${distance} км</small><br><button id="${buttonId}" style="margin-top:8px; background:#1a1a2e; color:white; border:none; padding:5px 10px; border-radius:6px; cursor:pointer;">Выбрать станцию</button></div>`
-            }, { preset: 'islands#blueRailwayIcon' });
+        if (stationLat && stationLng && typeof window.ymaps !== 'undefined') {
+            const balloonHtml = Templates.balloonContent(stationName, distance, buttonId);
+            const marker = new window.ymaps.Placemark(
+                [stationLat, stationLng],
+                {
+                    hintContent: stationName,
+                    balloonContent: balloonHtml
+                },
+                { preset: 'islands#blueRailwayIcon' }
+            );
             
             marker.events.add('balloonopen', function() {
                 const button = document.getElementById(buttonId);
-                if (button) button.onclick = () => { selectStationFromMap(stationCode, stationName); marker.balloon.close(); };
+                if (button) {
+                    button.onclick = () => {
+                        selectStationFromMap(stationCode, stationName);
+                        marker.balloon.close();
+                    };
+                }
             });
             
             map.geoObjects.add(marker);
             mapMarkers.push(marker);
         }
         
-        const stationItem = $(`<div class="nearby-station-item" data-code="${stationCode}" data-name="${stationName}"><i class="fas fa-train"></i><div class="station-info"><strong>${stationName}</strong><span class="distance">${distance} км</span>${city ? `<span class="city">${city}</span>` : ''}</div><button class="select-station-btn">Выбрать</button></div>`);
-        stationItem.find('.select-station-btn').click(() => selectStationFromMap(stationCode, stationName));
-        stationItem.click(() => selectStationFromMap(stationCode, stationName));
-        $('#nearby-stations-list').append(stationItem);
+        const stationItemHtml = Templates.nearbyStationItem(station, buttonId);
+        const $stationItem = $(stationItemHtml);
+        
+        $stationItem.find('.select-station-btn').click(() => {
+            selectStationFromMap(stationCode, stationName);
+        });
+        
+        $stationItem.click(() => {
+            selectStationFromMap(stationCode, stationName);
+        });
+        
+        $('#nearby-stations-list').append($stationItem);
     });
 }
 

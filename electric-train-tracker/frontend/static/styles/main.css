@@ -18,7 +18,6 @@ body {
     min-height: 100vh;
 }
 
-/* Новый стиль хедера - градиент розово-оранжевый */
 .header {
     text-align: center;
     margin-bottom: 20px;
@@ -73,7 +72,6 @@ body {
     z-index: 1;
 }
 
-/* Новые вкладки - стеклянный эффект */
 .tabs {
     display: flex;
     gap: 8px;
@@ -131,7 +129,6 @@ body {
     }
 }
 
-/* Карточки - новый дизайн */
 .card {
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(10px);
@@ -193,7 +190,6 @@ body {
     box-shadow: 0 0 0 3px rgba(245,87,108,0.2);
 }
 
-/* Кнопки - градиентные */
 .btn-primary {
     width: 100%;
     padding: 14px;
@@ -218,7 +214,6 @@ body {
     transform: translateY(0);
 }
 
-/* Кнопки карты */
 .map-buttons {
     display: flex;
     gap: 12px;
@@ -243,7 +238,6 @@ body {
     box-shadow: 0 6px 15px rgba(102,126,234,0.4);
 }
 
-/* Карта */
 .map-container {
     width: 100%;
     height: 400px;
@@ -253,7 +247,6 @@ body {
     border: 3px solid white;
 }
 
-/* Популярные станции - чипсы */
 .popular-list {
     display: flex;
     flex-wrap: wrap;
@@ -278,7 +271,6 @@ body {
     box-shadow: 0 4px 15px rgba(245,87,108,0.5);
 }
 
-/* Подсказки при поиске */
 .suggestions {
     position: absolute;
     top: 100%;
@@ -315,7 +307,6 @@ body {
     margin-top: 3px;
 }
 
-/* Результаты */
 .results-container {
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(10px);
@@ -348,7 +339,6 @@ body {
     font-weight: bold;
 }
 
-/* Карточки поездов */
 .train-card {
     background: white;
     border-radius: 20px;
@@ -433,7 +423,6 @@ body {
     font-weight: 500;
 }
 
-/* Кнопка избранного */
 .favorite-btn {
     background: rgba(245,87,108,0.1);
     border: none;
@@ -462,7 +451,6 @@ body {
     transform: scale(1.05);
 }
 
-/* Список станций рядом */
 .nearby-station-item {
     display: flex;
     align-items: center;
@@ -524,7 +512,6 @@ body {
     transform: scale(1.05);
 }
 
-/* Избранное */
 .favorite-card {
     display: flex;
     justify-content: space-between;
@@ -563,7 +550,6 @@ body {
     transform: scale(1.05);
 }
 
-/* Уведомления */
 #toast {
     background: linear-gradient(135deg, #2d3436 0%, #1a1a2e 100%);
     color: white;
@@ -575,7 +561,6 @@ body {
     border: 1px solid rgba(255,255,255,0.2);
 }
 
-/* Загрузчик */
 .loader i {
     font-size: 32px;
     background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
@@ -590,7 +575,6 @@ body {
     to { transform: rotate(360deg); }
 }
 
-/* Пустые состояния */
 .empty-message {
     text-align: center;
     color: #999;
@@ -598,7 +582,6 @@ body {
     font-size: 14px;
 }
 
-/* Дата инпут */
 .date-input {
     width: 100%;
     padding: 14px 16px;
@@ -615,7 +598,6 @@ body {
     box-shadow: 0 0 0 3px rgba(245,87,108,0.2);
 }
 
-/* Адаптив для мобильных */
 @media (max-width: 480px) {
     .app-container {
         padding: 12px;
@@ -657,7 +639,6 @@ body {
     }
 }
 
-/* Скроллбар */
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -672,7 +653,6 @@ body {
     border-radius: 10px;
 }
 
-/* Анимация для появления */
 @keyframes pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
